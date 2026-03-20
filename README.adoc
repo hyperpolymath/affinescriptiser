@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+= Affinescriptiser
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:toc: left
+:icons: font
+
+== What Is This?
+
+AffineScriptiser wraps existing code in **affine types, dependent types, and
+algebraic effects** — compiling to WebAssembly with no garbage collector.
+
+AffineScript combines Rust's ownership model with Idris-level dependent types
+and Koka-style effects. AffineScriptiser makes this accessible to existing codebases.
+
+== How It Works
+
+Describe your interface contracts in `affinescriptiser.toml`. AffineScriptiser:
+
+1. Analyses your function signatures and resource patterns
+2. Generates AffineScript wrappers with ownership + dependent type contracts
+3. Compiles to WebAssembly (no GC, no runtime, minimal binary)
+4. Creates FFI bridges for calling from JavaScript, Rust, or C
+
+== Key Value
+
+* **Rust-level safety + Idris-level verification** → WASM
+* **Dependent type contracts** verified at compile time
+* **Algebraic effects** for clean error handling and IO
+* **Zero-GC WebAssembly** — tiny, fast, portable binaries
+
+== Architecture
+
+Follows the hyperpolymath -iser pattern:
+manifest -> Idris2 ABI proof -> Zig FFI bridge -> target language codegen.
+Part of the https://github.com/hyperpolymath/iseriser[-iser family].
+
+== Status
+
+**Pre-alpha.** Architecture defined, scaffolding in place, codegen pending.
+
+== License
+
+SPDX-License-Identifier: PMPL-1.0-or-later

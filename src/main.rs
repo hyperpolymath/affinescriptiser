@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// Copyright (c) 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+//
+// affinescriptiser CLI — Wrap existing code in affine + dependent types targeting WASM via AffineScript
+
+use anyhow::Result;
+use clap::{Parser, Subcommand};
+
+mod codegen;
+mod manifest;
+
+/// affinescriptiser — Wrap existing code in affine + dependent types targeting WASM via AffineScript
+#[derive(Parser)]
+#[command(name = "affinescriptiser", version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Initialise a new affinescriptiser.toml manifest.
+    Init { #[arg(short, long, default_value = ".")] path: String },
+    /// Validate a affinescriptiser.toml manifest.
+    Validate { #[arg(short, long, default_value = "affinescriptiser.toml")] manifest: String },
+    /// Generate AffineScript wrapper, Zig FFI bridge, and C headers.
+    Generate {
+        #[arg(short, long, default_value = "affinescriptiser.toml")] manifest: String,
+        #[arg(short, long, default_value = "generated/affinescriptiser")] output: String,
+    },
+    /// Build the generated artifacts.
+    Build { #[arg(short, long, default_value = "affinescriptiser.toml")] manifest: String, #[arg(long)] release: bool },
+    /// Run the workload.
+    Run {
+        #[arg(short, long, default_value = "affinescriptiser.toml")] manifest: String,
+        #[arg(trailing_var_arg = true)] args: Vec<String>,
+    },
+    /// Show manifest information.
+    Info { #[arg(short, long, default_value = "affinescriptiser.toml")] manifest: String },
+}
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+    match cli.command {
+        Commands::Init { path } => { manifest::init_manifest(&path)?; }
+        Commands::Validate { manifest } => { let m = manifest::load_manifest(&manifest)?; manifest::validate(&m)?; println!("Valid: {}", m.workload.name); }
+        Commands::Generate { manifest, output } => { let m = manifest::load_manifest(&manifest)?; manifest::validate(&m)?; codegen::generate_all(&m, &output)?; }
+        Commands::Build { manifest, release } => { let m = manifest::load_manifest(&manifest)?; codegen::build(&m, release)?; }
+        Commands::Run { manifest, args } => { let m = manifest::load_manifest(&manifest)?; codegen::run(&m, &args)?; }
+        Commands::Info { manifest } => { let m = manifest::load_manifest(&manifest)?; manifest::print_info(&m); }
+    }
+    Ok(())
+}
