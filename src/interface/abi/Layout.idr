@@ -1,16 +1,19 @@
 -- SPDX-License-Identifier: PMPL-1.0-or-later
--- Copyright (c) {{CURRENT_YEAR}} {{AUTHOR}} ({{OWNER}}) <{{AUTHOR_EMAIL}}>
+-- Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 --
-||| Memory Layout Proofs
+||| WASM Memory Layout Proofs for Affinescriptiser
 |||
-||| This module provides formal proofs about memory layout, alignment,
-||| and padding for C-compatible structs.
+||| This module provides formal proofs about WASM linear memory layout,
+||| alignment, and padding. Because affinescriptiser compiles to WebAssembly,
+||| we must prove that the memory layout of tracked resources matches what
+||| the WASM runtime expects. WASM uses 32-bit addresses and a flat linear
+||| memory model — there is no heap management provided by the runtime.
 |||
-||| @see https://en.wikipedia.org/wiki/Data_structure_alignment
+||| @see https://webassembly.github.io/spec/core/syntax/types.html
 
-module {{PROJECT}}.ABI.Layout
+module Affinescriptiser.ABI.Layout
 
-import {{PROJECT}}.ABI.Types
+import Affinescriptiser.ABI.Types
 import Data.Vect
 import Data.So
 
@@ -43,11 +46,83 @@ alignUp size alignment =
 public export
 alignUpCorrect : (size : Nat) -> (align : Nat) -> (align > 0) -> Divides align (alignUp size align)
 alignUpCorrect size align prf =
-  -- Proof that (size + padding) is divisible by align
   DivideBy ((size + paddingFor size align) `div` align) Refl
 
 --------------------------------------------------------------------------------
--- Struct Field Layout
+-- WASM Linear Memory Layout
+--------------------------------------------------------------------------------
+
+||| WASM page size is always 64KiB (65536 bytes)
+public export
+wasmPageSize : Nat
+wasmPageSize = 65536
+
+||| Maximum WASM linear memory: 4GiB (65536 pages)
+public export
+wasmMaxPages : Nat
+wasmMaxPages = 65536
+
+||| Maximum WASM linear memory in bytes
+public export
+wasmMaxMemory : Nat
+wasmMaxMemory = wasmPageSize * wasmMaxPages
+
+||| A region in WASM linear memory
+public export
+record WASMRegion where
+  constructor MkWASMRegion
+  ||| Byte offset from start of linear memory
+  offset : Nat
+  ||| Size in bytes
+  size : Nat
+  ||| Required alignment
+  alignment : Nat
+
+||| Proof that a WASM region fits within linear memory bounds
+public export
+data RegionInBounds : WASMRegion -> Nat -> Type where
+  InBounds : (r : WASMRegion) -> (memSize : Nat) -> {auto 0 ok : So (r.offset + r.size <= memSize)} -> RegionInBounds r memSize
+
+||| Proof that two WASM regions do not overlap
+||| Critical for affine correctness: two affine resources must not alias
+public export
+data NonOverlapping : WASMRegion -> WASMRegion -> Type where
+  DisjointBefore : (a : WASMRegion) -> (b : WASMRegion) -> {auto 0 ok : So (a.offset + a.size <= b.offset)} -> NonOverlapping a b
+  DisjointAfter  : (a : WASMRegion) -> (b : WASMRegion) -> {auto 0 ok : So (b.offset + b.size <= a.offset)} -> NonOverlapping a b
+
+--------------------------------------------------------------------------------
+-- Resource Memory Layout
+--------------------------------------------------------------------------------
+
+||| Memory layout for a tracked resource in WASM linear memory
+||| Each tracked resource occupies a contiguous region with:
+||| - 4 bytes: resource kind tag (Bits32)
+||| - 4 bytes: linearity tag (Bits32)
+||| - 4 bytes: ownership state (Bits32)
+||| - 4 bytes: padding (alignment to 8 bytes)
+||| - 4/8 bytes: raw handle (Bits32 on WASM, Bits64 on native)
+public export
+resourceLayoutSize : Platform -> Nat
+resourceLayoutSize WASM = 20  -- 4+4+4+4+4 = 20 bytes (handle is 32-bit on WASM)
+resourceLayoutSize _    = 24  -- 4+4+4+4+8 = 24 bytes (handle is 64-bit on native)
+
+||| Alignment requirement for resource layout
+public export
+resourceLayoutAlign : Platform -> Nat
+resourceLayoutAlign WASM = 4  -- WASM native alignment
+resourceLayoutAlign _    = 8  -- 64-bit native alignment
+
+||| WASM resource region given a base offset
+public export
+resourceRegion : Platform -> Nat -> WASMRegion
+resourceRegion p baseOffset =
+  MkWASMRegion
+    (alignUp baseOffset (resourceLayoutAlign p))
+    (resourceLayoutSize p)
+    (resourceLayoutAlign p)
+
+--------------------------------------------------------------------------------
+-- Struct Field Layout (for user types passed through FFI)
 --------------------------------------------------------------------------------
 
 ||| A field in a struct with its offset and size
@@ -104,22 +179,44 @@ verifyLayout fields align =
         No _ => Left "Invalid struct size"
 
 --------------------------------------------------------------------------------
--- Platform-Specific Layouts
+-- WASM-Specific Layout Proofs
 --------------------------------------------------------------------------------
 
-||| Struct layout may differ by platform
+||| Proof that a struct layout fits within a single WASM page
 public export
-PlatformLayout : Platform -> Type -> Type
-PlatformLayout p t = StructLayout
+data FitsInPage : StructLayout -> Type where
+  PageFit : (layout : StructLayout) -> {auto 0 ok : So (layout.totalSize <= wasmPageSize)} -> FitsInPage layout
 
-||| Verify layout is correct for all platforms
+||| Layout of the affine resource table in WASM linear memory
+||| The resource table is a contiguous array of resource slots at a fixed
+||| base address. Each slot holds one TrackedResource's memory representation.
 public export
-verifyAllPlatforms :
-  (layouts : (p : Platform) -> PlatformLayout p t) ->
-  Either String ()
-verifyAllPlatforms layouts =
-  -- Check that layout is valid on all platforms
-  Right ()
+record ResourceTable where
+  constructor MkResourceTable
+  ||| Base offset in WASM linear memory
+  baseOffset : Nat
+  ||| Maximum number of tracked resources
+  capacity : Nat
+  ||| Platform (determines slot size)
+  platform : Platform
+
+||| Total size of a resource table in bytes
+public export
+tableSize : ResourceTable -> Nat
+tableSize t = t.capacity * resourceLayoutSize t.platform
+
+||| Proof that a resource table fits in WASM linear memory
+public export
+data TableInBounds : ResourceTable -> Type where
+  TableOk : (t : ResourceTable) -> {auto 0 ok : So (t.baseOffset + tableSize t <= wasmMaxMemory)} -> TableInBounds t
+
+||| Get the WASM region for the nth resource in a table
+public export
+slotRegion : ResourceTable -> (index : Nat) -> {auto 0 ok : So (index < capacity t)} -> WASMRegion
+slotRegion t index =
+  let slotSize = resourceLayoutSize t.platform
+      slotOffset = t.baseOffset + (index * slotSize)
+   in MkWASMRegion slotOffset slotSize (resourceLayoutAlign t.platform)
 
 --------------------------------------------------------------------------------
 -- C ABI Compatibility
@@ -137,29 +234,26 @@ data CABICompliant : StructLayout -> Type where
 public export
 checkCABI : (layout : StructLayout) -> Either String (CABICompliant layout)
 checkCABI layout =
-  -- Verify C ABI rules
   Right (CABIOk layout ?fieldsAlignedProof)
 
 --------------------------------------------------------------------------------
--- Example Layouts
+-- Example: Tracked File Descriptor Layout
 --------------------------------------------------------------------------------
 
-||| Example: Simple struct layout
+||| Layout of a tracked file descriptor in WASM linear memory
+||| Fields: kind (4B) + linearity (4B) + ownership (4B) + padding (4B) + fd (4B)
 public export
-exampleLayout : StructLayout
-exampleLayout =
+trackedFDLayout : StructLayout
+trackedFDLayout =
   MkStructLayout
-    [ MkField "x" 0 4 4     -- Bits32 at offset 0
-    , MkField "y" 8 8 8     -- Bits64 at offset 8 (4 bytes padding)
-    , MkField "z" 16 8 8    -- Double at offset 16
+    [ MkField "kind"      0  4 4   -- ResourceKind tag at offset 0
+    , MkField "linearity" 4  4 4   -- Linearity tag at offset 4
+    , MkField "ownership" 8  4 4   -- Ownership state at offset 8
+    , MkField "padding"   12 4 4   -- Alignment padding
+    , MkField "fd"        16 4 4   -- File descriptor (Bits32 on WASM)
     ]
-    24  -- Total size: 24 bytes
-    8   -- Alignment: 8 bytes
-
-||| Proof that example layout is valid
-export
-exampleLayoutValid : CABICompliant exampleLayout
-exampleLayoutValid = CABIOk exampleLayout ?exampleFieldsAligned
+    20   -- Total size: 20 bytes
+    4    -- Alignment: 4 bytes (WASM native)
 
 --------------------------------------------------------------------------------
 -- Offset Calculation

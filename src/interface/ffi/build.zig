@@ -1,5 +1,6 @@
-// {{PROJECT}} FFI Build Configuration
+// Affinescriptiser FFI Build Configuration
 // SPDX-License-Identifier: PMPL-1.0-or-later
+// Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 
 const std = @import("std");
 
@@ -9,7 +10,7 @@ pub fn build(b: *std.Build) void {
 
     // Shared library (.so, .dylib, .dll)
     const lib = b.addSharedLibrary(.{
-        .name = "{{project}}",
+        .name = "affinescriptiser",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -20,7 +21,7 @@ pub fn build(b: *std.Build) void {
 
     // Static library (.a)
     const lib_static = b.addStaticLibrary(.{
-        .name = "{{project}}",
+        .name = "affinescriptiser",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -32,8 +33,8 @@ pub fn build(b: *std.Build) void {
 
     // Generate header file for C compatibility
     const header = b.addInstallHeader(
-        b.path("include/{{project}}.h"),
-        "{{project}}.h",
+        b.path("include/affinescriptiser.h"),
+        "affinescriptiser.h",
     );
     b.getInstallStep().dependOn(&header.step);
 
@@ -79,7 +80,7 @@ pub fn build(b: *std.Build) void {
 
     // Benchmark (if needed)
     const bench = b.addExecutable(.{
-        .name = "{{project}}-bench",
+        .name = "affinescriptiser-bench",
         .root_source_file = b.path("bench/bench.zig"),
         .target = target,
         .optimize = .ReleaseFast,
