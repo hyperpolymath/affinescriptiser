@@ -6,18 +6,25 @@
   (version "0.1.0")
   (name "affinescriptiser")
   (type "tool")
-  (purpose "Wrap code in affine + dependent types targeting WASM")
+  (purpose "Wrap existing Rust/C/Zig code in affine + dependent types, compile to WASM via AffineScript")
 
   (position-in-ecosystem
     (family "-iser acceleration frameworks")
     (meta-framework "iseriser")
     (relationship "sibling")
+    (niche "Resource safety and WASM compilation — the only -iser that targets WebAssembly as primary output")
     (top-3 ("typedqliser" "chapeliser" "verisimiser")))
 
   (related-projects
+    (project "affinescript"
+      (relationship "target-language")
+      (description "The AffineScript language itself — affine types + dependent types + algebraic effects, compiling to WASM")
+      (repo "https://github.com/hyperpolymath/affinescript")
+      (how-used "affinescriptiser generates AffineScript source code as an intermediate representation before WASM compilation"))
     (project "iseriser"
       (relationship "meta-framework")
-      (description "Generates new -iser project scaffolding"))
+      (description "Generates new -iser project scaffolding")
+      (repo "https://github.com/hyperpolymath/iseriser"))
     (project "typedqliser"
       (relationship "sibling-priority-1")
       (description "Formal type safety for any query language"))
@@ -27,12 +34,15 @@
     (project "verisimiser"
       (relationship "sibling-priority-3")
       (description "VeriSimDB octad database augmentation"))
-    (project "squeakwell"
-      (relationship "sibling")
-      (description "Database recovery via constraint propagation"))
     (project "proven"
       (relationship "dependency")
-      (description "Shared Idris2 verified library"))
+      (description "Shared Idris2 verified library — affinescriptiser uses proven's core proofs for resource linearity"))
     (project "typell"
       (relationship "dependency")
-      (description "Type theory engine"))))
+      (description "Type theory engine — provides the type-level reasoning used in affine/dependent type generation"))
+    (project "boj-server"
+      (relationship "future-integration")
+      (description "BoJ MCP server — affinescriptiser will be available as a BoJ cartridge for on-demand wrapping"))
+    (project "panll"
+      (relationship "future-integration")
+      (description "Panel layout framework — affinescriptiser panel for resource ownership visualisation"))))

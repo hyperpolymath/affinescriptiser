@@ -4,38 +4,59 @@
 
 (meta
   (version "0.1.0")
-  (last-updated "2026-03-20")
+  (last-updated "2026-03-21")
 
   (architecture-decisions
     (adr "001-iser-pattern"
       (status "accepted")
-      (context "Need to make powerful languages accessible without steep learning curves")
-      (decision "Use manifest-driven code generation: user describes WHAT, tool generates HOW")
-      (consequences "Users write zero target language code; all complexity in the -iser"))
+      (context "Need to make AffineScript's type system accessible without steep learning curves")
+      (decision "Use manifest-driven code generation: user describes WHAT resources to track, tool generates AffineScript wrappers")
+      (consequences "Users write zero AffineScript code; all complexity in the -iser. Trade-off: less control over generated wrappers."))
 
     (adr "002-abi-ffi-standard"
       (status "accepted")
-      (context "Need verified interop between Rust CLI, target language, and user code")
-      (decision "Idris2 ABI for formal proofs, Zig FFI for C-ABI bridge")
-      (consequences "Compile-time correctness guarantees; zero runtime overhead from proofs"))
+      (context "Need verified interop between Rust CLI, AffineScript codegen, Zig FFI, and WASM output")
+      (decision "Idris2 ABI for formal proofs of affine invariants, Zig FFI for C-ABI bridge")
+      (consequences "Compile-time correctness guarantees; zero runtime overhead from proofs. Idris2 proves resources cannot leak or double-free across the FFI boundary."))
 
-    (adr "003-rsr-template"
+    (adr "003-affine-types-over-linear"
+      (status "accepted")
+      (context "AffineScript supports both affine (at-most-once) and linear (exactly-once) types")
+      (decision "Default to affine for most resources. Linear only for mutex locks (where failing to unlock is a bug).")
+      (consequences "Affine is more forgiving — unused resources are safe (just wasteful). Linear catches forgotten unlocks."))
+
+    (adr "004-wasm-primary-target"
+      (status "accepted")
+      (context "Need to decide compilation targets")
+      (decision "WASM is the primary target (wasm32-unknown-unknown, wasm32-wasi). Native targets supported for testing only.")
+      (consequences "32-bit address space, no GC, flat linear memory model. Resource table layout optimised for WASM page alignment."))
+
+    (adr "005-resource-kind-registry"
+      (status "accepted")
+      (context "Need to classify detected resource handles")
+      (decision "Define ResourceKind enum in Idris2 with 7 concrete variants plus OpaqueResource for user-defined handles")
+      (consequences "Covers file descriptors, heap allocations, sockets, locks, GPU buffers, mmap, database handles. OpaqueResource allows extension without modifying the ABI."))
+
+    (adr "006-rsr-template"
       (status "accepted")
       (context "Need consistent project structure across 29+ -iser repos")
       (decision "All repos cloned from rsr-template-repo with full CI/CD and governance")
       (consequences "17 workflows, SECURITY.md, CONTRIBUTING, bot directives from day one")))
 
   (development-practices
-    (language "Rust" (purpose "CLI and orchestration"))
-    (language "Idris2" (purpose "ABI formal proofs"))
-    (language "Zig" (purpose "FFI C-ABI bridge"))
-    (build-tool "cargo")
+    (language "Rust" (purpose "CLI orchestration: manifest parsing, source analysis, codegen dispatch"))
+    (language "Idris2" (purpose "ABI formal proofs: ResourceKind, Linearity, Ownership, WASM memory layout"))
+    (language "Zig" (purpose "FFI C-ABI bridge: compilation context, source registration, analysis, WASM compilation"))
+    (language "AffineScript" (purpose "Target language: generated wrappers with affine + dependent types"))
+    (build-tool "cargo" (secondary "zig build"))
     (ci "GitHub Actions (17 workflows)"))
 
   (design-rationale
     (principle "Manifest-driven"
-      (explanation "User intent captured in TOML; all generation is deterministic and reproducible"))
-    (principle "Formally verified bridges"
-      (explanation "Idris2 dependent types prove interface correctness at compile time"))
+      (explanation "User intent captured in affinescriptiser.toml; all generation is deterministic and reproducible"))
+    (principle "Formally verified resource safety"
+      (explanation "Idris2 dependent types prove that affine invariants (no leak, no double-free, no use-after-release) hold at compile time"))
+    (principle "WASM-first compilation"
+      (explanation "Output is a zero-GC WebAssembly binary suitable for browsers, edge workers, and IoT devices"))
     (principle "Zero target language exposure"
-      (explanation "Users never write Chapel/Julia/Futhark/etc. — the -iser handles everything"))))
+      (explanation "Users never write AffineScript directly — the -iser generates all wrappers from the manifest and source analysis"))))

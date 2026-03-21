@@ -1,79 +1,183 @@
-// {{PROJECT}} Integration Tests
+// Affinescriptiser Integration Tests
 // SPDX-License-Identifier: PMPL-1.0-or-later
+// Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 //
 // These tests verify that the Zig FFI correctly implements the Idris2 ABI
+// defined in src/interface/abi/{Types,Layout,Foreign}.idr
 
 const std = @import("std");
 const testing = std.testing;
 
-// Import FFI functions
-extern fn {{project}}_init() ?*opaque {};
-extern fn {{project}}_free(?*opaque {}) void;
-extern fn {{project}}_process(?*opaque {}, u32) c_int;
-extern fn {{project}}_get_string(?*opaque {}) ?[*:0]const u8;
-extern fn {{project}}_free_string(?[*:0]const u8) void;
-extern fn {{project}}_last_error() ?[*:0]const u8;
-extern fn {{project}}_version() [*:0]const u8;
-extern fn {{project}}_is_initialized(?*opaque {}) u32;
+// Import FFI functions (C ABI, matching Foreign.idr declarations)
+extern fn affinescriptiser_init() ?*opaque {};
+extern fn affinescriptiser_free(?*opaque {}) void;
+extern fn affinescriptiser_register_source(?*opaque {}, ?[*:0]const u8, u32) c_int;
+extern fn affinescriptiser_track_resource(?*opaque {}, ?[*:0]const u8, u32, u32) c_int;
+extern fn affinescriptiser_analyse(?*opaque {}) c_int;
+extern fn affinescriptiser_violation_count(?*opaque {}) u32;
+extern fn affinescriptiser_compile_wasm(?*opaque {}, ?[*:0]const u8, u32) c_int;
+extern fn affinescriptiser_wasm_size(?*opaque {}) u32;
+extern fn affinescriptiser_last_error() ?[*:0]const u8;
+extern fn affinescriptiser_free_string(?[*:0]const u8) void;
+extern fn affinescriptiser_version() [*:0]const u8;
+extern fn affinescriptiser_build_info() [*:0]const u8;
+extern fn affinescriptiser_is_initialized(?*opaque {}) u32;
+extern fn affinescriptiser_source_count(?*opaque {}) u32;
+extern fn affinescriptiser_tracked_count(?*opaque {}) u32;
 
 //==============================================================================
 // Lifecycle Tests
 //==============================================================================
 
-test "create and destroy handle" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
+test "create and destroy context" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
 
     try testing.expect(handle != null);
 }
 
-test "handle is initialized" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
+test "context is initialized" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
 
-    const initialized = {{project}}_is_initialized(handle);
+    const initialized = affinescriptiser_is_initialized(handle);
     try testing.expectEqual(@as(u32, 1), initialized);
 }
 
 test "null handle is not initialized" {
-    const initialized = {{project}}_is_initialized(null);
+    const initialized = affinescriptiser_is_initialized(null);
     try testing.expectEqual(@as(u32, 0), initialized);
 }
 
 //==============================================================================
-// Operation Tests
+// Source Registration Tests
 //==============================================================================
 
-test "process with valid handle" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
+test "register Rust source file" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
 
-    const result = {{project}}_process(handle, 42);
+    const result = affinescriptiser_register_source(handle, "src/lib.rs", 0);
     try testing.expectEqual(@as(c_int, 0), result); // 0 = ok
+
+    try testing.expectEqual(@as(u32, 1), affinescriptiser_source_count(handle));
 }
 
-test "process with null handle returns error" {
-    const result = {{project}}_process(null, 42);
+test "register C source file" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
+
+    const result = affinescriptiser_register_source(handle, "src/main.c", 1);
+    try testing.expectEqual(@as(c_int, 0), result);
+}
+
+test "register Zig source file" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
+
+    const result = affinescriptiser_register_source(handle, "src/main.zig", 2);
+    try testing.expectEqual(@as(c_int, 0), result);
+}
+
+test "register source with null handle returns error" {
+    const result = affinescriptiser_register_source(null, "test.rs", 0);
     try testing.expectEqual(@as(c_int, 4), result); // 4 = null_pointer
 }
 
-//==============================================================================
-// String Tests
-//==============================================================================
+test "register multiple source files" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
 
-test "get string result" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
+    _ = affinescriptiser_register_source(handle, "a.rs", 0);
+    _ = affinescriptiser_register_source(handle, "b.c", 1);
+    _ = affinescriptiser_register_source(handle, "c.zig", 2);
 
-    const str = {{project}}_get_string(handle);
-    defer if (str) |s| {{project}}_free_string(s);
-
-    try testing.expect(str != null);
+    try testing.expectEqual(@as(u32, 3), affinescriptiser_source_count(handle));
 }
 
-test "get string with null handle" {
-    const str = {{project}}_get_string(null);
-    try testing.expect(str == null);
+//==============================================================================
+// Resource Tracking Tests
+//==============================================================================
+
+test "track file descriptor as affine" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
+
+    // kind=0 (FileDescriptor), linearity=1 (Affine)
+    const result = affinescriptiser_track_resource(handle, "fd", 0, 1);
+    try testing.expectEqual(@as(c_int, 0), result);
+
+    try testing.expectEqual(@as(u32, 1), affinescriptiser_tracked_count(handle));
+}
+
+test "track mutex lock as linear" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
+
+    // kind=3 (MutexLock), linearity=0 (Linear)
+    const result = affinescriptiser_track_resource(handle, "lock", 3, 0);
+    try testing.expectEqual(@as(c_int, 0), result);
+}
+
+test "track GPU buffer as affine" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
+
+    // kind=4 (GPUBuffer), linearity=1 (Affine)
+    const result = affinescriptiser_track_resource(handle, "gpu_buf", 4, 1);
+    try testing.expectEqual(@as(c_int, 0), result);
+}
+
+test "track resource with null handle" {
+    const result = affinescriptiser_track_resource(null, "fd", 0, 1);
+    try testing.expectEqual(@as(c_int, 4), result); // null_pointer
+}
+
+//==============================================================================
+// Analysis Tests
+//==============================================================================
+
+test "analyse with registered sources" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
+
+    _ = affinescriptiser_register_source(handle, "test.rs", 0);
+    _ = affinescriptiser_track_resource(handle, "fd", 0, 1);
+
+    const result = affinescriptiser_analyse(handle);
+    try testing.expectEqual(@as(c_int, 0), result);
+
+    try testing.expectEqual(@as(u32, 0), affinescriptiser_violation_count(handle));
+}
+
+test "analyse with null handle" {
+    const result = affinescriptiser_analyse(null);
+    try testing.expectEqual(@as(c_int, 4), result); // null_pointer
+}
+
+test "analyse with no sources returns invalid_param" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
+
+    const result = affinescriptiser_analyse(handle);
+    try testing.expectEqual(@as(c_int, 2), result); // invalid_param
+}
+
+//==============================================================================
+// WASM Compilation Tests
+//==============================================================================
+
+test "compile wasm with null handle" {
+    const result = affinescriptiser_compile_wasm(null, "out.wasm", 0);
+    try testing.expectEqual(@as(c_int, 4), result); // null_pointer
+}
+
+test "compile wasm with null output path" {
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
+
+    const result = affinescriptiser_compile_wasm(handle, null, 0);
+    try testing.expectEqual(@as(c_int, 4), result); // null_pointer
 }
 
 //==============================================================================
@@ -81,25 +185,27 @@ test "get string with null handle" {
 //==============================================================================
 
 test "last error after null handle operation" {
-    _ = {{project}}_process(null, 0);
+    _ = affinescriptiser_analyse(null);
 
-    const err = {{project}}_last_error();
+    const err = affinescriptiser_last_error();
     try testing.expect(err != null);
 
     if (err) |e| {
         const err_str = std.mem.span(e);
         try testing.expect(err_str.len > 0);
+        affinescriptiser_free_string(e);
     }
 }
 
 test "no error after successful operation" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
+    const handle = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(handle);
 
-    _ = {{project}}_process(handle, 0);
+    _ = affinescriptiser_register_source(handle, "test.rs", 0);
 
     // Error should be cleared after successful operation
-    // (This depends on implementation)
+    const err = affinescriptiser_last_error();
+    try testing.expect(err == null);
 }
 
 //==============================================================================
@@ -107,76 +213,46 @@ test "no error after successful operation" {
 //==============================================================================
 
 test "version string is not empty" {
-    const ver = {{project}}_version();
+    const ver = affinescriptiser_version();
     const ver_str = std.mem.span(ver);
 
     try testing.expect(ver_str.len > 0);
 }
 
 test "version string is semantic version format" {
-    const ver = {{project}}_version();
+    const ver = affinescriptiser_version();
     const ver_str = std.mem.span(ver);
 
     // Should be in format X.Y.Z
     try testing.expect(std.mem.count(u8, ver_str, ".") >= 1);
 }
 
+test "build info contains affinescriptiser" {
+    const info = affinescriptiser_build_info();
+    const info_str = std.mem.span(info);
+
+    try testing.expect(std.mem.indexOf(u8, info_str, "affinescriptiser") != null);
+}
+
 //==============================================================================
 // Memory Safety Tests
 //==============================================================================
 
-test "multiple handles are independent" {
-    const h1 = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(h1);
+test "multiple contexts are independent" {
+    const h1 = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(h1);
 
-    const h2 = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(h2);
+    const h2 = affinescriptiser_init() orelse return error.InitFailed;
+    defer affinescriptiser_free(h2);
 
     try testing.expect(h1 != h2);
 
-    // Operations on h1 should not affect h2
-    _ = {{project}}_process(h1, 1);
-    _ = {{project}}_process(h2, 2);
-}
-
-test "double free is safe" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-
-    {{project}}_free(handle);
-    {{project}}_free(handle); // Should not crash
+    // Registering sources on h1 should not affect h2
+    _ = affinescriptiser_register_source(h1, "a.rs", 0);
+    try testing.expectEqual(@as(u32, 1), affinescriptiser_source_count(h1));
+    try testing.expectEqual(@as(u32, 0), affinescriptiser_source_count(h2));
 }
 
 test "free null is safe" {
-    {{project}}_free(null); // Should not crash
-}
-
-//==============================================================================
-// Thread Safety Tests (if applicable)
-//==============================================================================
-
-test "concurrent operations" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
-
-    const ThreadContext = struct {
-        h: *opaque {},
-        id: u32,
-    };
-
-    const thread_fn = struct {
-        fn run(ctx: ThreadContext) void {
-            _ = {{project}}_process(ctx.h, ctx.id);
-        }
-    }.run;
-
-    var threads: [4]std.Thread = undefined;
-    for (&threads, 0..) |*thread, i| {
-        thread.* = try std.Thread.spawn(.{}, thread_fn, .{
-            ThreadContext{ .h = handle, .id = @intCast(i) },
-        });
-    }
-
-    for (threads) |thread| {
-        thread.join();
-    }
+    affinescriptiser_free(null); // Should not crash
 }
