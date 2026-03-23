@@ -34,13 +34,21 @@ pub fn generate_all(manifest: &Manifest, output_dir: &str) -> Result<()> {
     );
 
     // Phase 2: Generate AffineScript type wrapper module.
-    let abi_resources: Vec<_> = manifest.resources.iter().map(|r| r.to_abi_resource()).collect();
+    let abi_resources: Vec<_> = manifest
+        .resources
+        .iter()
+        .map(|r| r.to_abi_resource())
+        .collect();
     let affine_module =
         affine_gen::generate_affine_module(&manifest.project.name, &abi_resources, &sites);
 
     let affine_path = out.join(format!("{}.afs", manifest.project.name));
-    fs::write(&affine_path, &affine_module.source)
-        .with_context(|| format!("Failed to write AffineScript module to {}", affine_path.display()))?;
+    fs::write(&affine_path, &affine_module.source).with_context(|| {
+        format!(
+            "Failed to write AffineScript module to {}",
+            affine_path.display()
+        )
+    })?;
     println!(
         "  [affine] Generated AffineScript module: {}",
         affine_path.display()
@@ -52,15 +60,19 @@ pub fn generate_all(manifest: &Manifest, output_dir: &str) -> Result<()> {
     let config_path = out.join("wasm-build.toml");
     fs::write(&config_path, &wasm_output.build_config)
         .with_context(|| format!("Failed to write WASM config to {}", config_path.display()))?;
-    println!("  [wasm]   Generated build config: {}", config_path.display());
+    println!(
+        "  [wasm]   Generated build config: {}",
+        config_path.display()
+    );
 
     let entry_path = out.join("entry.afs");
-    fs::write(&entry_path, &wasm_output.entry_point)
-        .with_context(|| format!("Failed to write WASM entry point to {}", entry_path.display()))?;
-    println!(
-        "  [wasm]   Generated entry point: {}",
-        entry_path.display()
-    );
+    fs::write(&entry_path, &wasm_output.entry_point).with_context(|| {
+        format!(
+            "Failed to write WASM entry point to {}",
+            entry_path.display()
+        )
+    })?;
+    println!("  [wasm]   Generated entry point: {}", entry_path.display());
 
     // Report violations.
     let all_violations: Vec<_> = affine_module
@@ -72,10 +84,7 @@ pub fn generate_all(manifest: &Manifest, output_dir: &str) -> Result<()> {
     if all_violations.is_empty() {
         println!("  [check]  No violations detected");
     } else {
-        println!(
-            "  [check]  {} violation(s) detected:",
-            all_violations.len()
-        );
+        println!("  [check]  {} violation(s) detected:", all_violations.len());
         for v in &all_violations {
             println!("    [{}] {}", v.severity, v.violation);
             println!("           Suggestion: {}", v.suggestion);

@@ -4,13 +4,11 @@
 // Integration tests for affinescriptiser — Validates the full pipeline from manifest parsing
 // through source analysis, AffineScript codegen, and WASM output generation.
 
-use affinescriptiser::abi::{AffinityKind, AffineResource, WasmConfig, WasmTarget};
+use affinescriptiser::abi::{AffineResource, AffinityKind, WasmConfig, WasmTarget};
 use affinescriptiser::codegen::affine_gen::generate_affine_module;
 use affinescriptiser::codegen::parser::parse_source_string;
 use affinescriptiser::codegen::wasm_gen::{check_size_limit, generate_wasm_output};
-use affinescriptiser::manifest::{
-    validate, Manifest, ProjectConfig, ResourceEntry, SourceEntry,
-};
+use affinescriptiser::manifest::{Manifest, ProjectConfig, ResourceEntry, SourceEntry, validate};
 
 /// Helper: construct a valid manifest programmatically.
 fn make_manifest(
@@ -121,9 +119,16 @@ close_file(f);  // BUG: double free
     let abi_resources: Vec<_> = resources.iter().map(|r| r.to_abi_resource()).collect();
     let module = generate_affine_module("test", &abi_resources, &sites);
 
-    assert_eq!(module.violations.len(), 1, "Should detect exactly one double-free");
+    assert_eq!(
+        module.violations.len(),
+        1,
+        "Should detect exactly one double-free"
+    );
     assert!(
-        module.violations[0].violation.to_string().contains("DOUBLE-FREE"),
+        module.violations[0]
+            .violation
+            .to_string()
+            .contains("DOUBLE-FREE"),
         "Violation should be a double-free"
     );
     assert_eq!(module.violations[0].severity, "error");
@@ -338,7 +343,11 @@ fn test_generate_writes_files_to_output_dir() {
     // Write files manually (simulating what generate_all does).
     std::fs::create_dir_all(&output_dir).unwrap();
     std::fs::write(output_dir.join("test_project.afs"), &module.source).unwrap();
-    std::fs::write(output_dir.join("wasm-build.toml"), &wasm_output.build_config).unwrap();
+    std::fs::write(
+        output_dir.join("wasm-build.toml"),
+        &wasm_output.build_config,
+    )
+    .unwrap();
     std::fs::write(output_dir.join("entry.afs"), &wasm_output.entry_point).unwrap();
 
     // Verify files exist and have content.

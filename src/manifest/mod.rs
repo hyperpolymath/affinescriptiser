@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use crate::abi::{AffinityKind, AffineResource, WasmConfig};
+use crate::abi::{AffineResource, AffinityKind, WasmConfig};
 
 /// Top-level manifest structure, corresponding to the `affinescriptiser.toml` file.
 /// Contains the project identity, source file declarations, resource tracking rules,
@@ -87,6 +87,7 @@ pub enum SourceLanguage {
 impl SourceLanguage {
     /// Parse a language string from the manifest into the enum.
     /// Returns None for unrecognised language identifiers.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "rust" | "rs" => Some(SourceLanguage::Rust),
@@ -100,8 +101,8 @@ impl SourceLanguage {
 /// Load and deserialise an affinescriptiser.toml manifest from the given file path.
 /// Returns an error if the file cannot be read or the TOML structure is invalid.
 pub fn load_manifest(path: &str) -> Result<Manifest> {
-    let content =
-        std::fs::read_to_string(path).with_context(|| format!("Failed to read manifest: {}", path))?;
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read manifest: {}", path))?;
     toml::from_str(&content).with_context(|| format!("Failed to parse manifest: {}", path))
 }
 
@@ -159,10 +160,10 @@ pub fn validate(manifest: &Manifest) -> Result<()> {
     }
 
     // Validate WASM size limit.
-    if let Some(limit) = manifest.wasm.size_limit_kb {
-        if limit == 0 {
-            anyhow::bail!("wasm.size-limit-kb must be greater than 0");
-        }
+    if let Some(limit) = manifest.wasm.size_limit_kb
+        && limit == 0
+    {
+        anyhow::bail!("wasm.size-limit-kb must be greater than 0");
     }
 
     Ok(())

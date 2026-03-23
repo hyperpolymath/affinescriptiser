@@ -205,7 +205,10 @@ mod tests {
 
     #[test]
     fn test_contains_call_basic() {
-        assert!(contains_call("let buf = create_buffer(size);", "create_buffer"));
+        assert!(contains_call(
+            "let buf = create_buffer(size);",
+            "create_buffer"
+        ));
         assert!(contains_call("  release_buffer(buf);", "release_buffer"));
     }
 
@@ -250,7 +253,10 @@ release_buffer(buf);
 release_buffer(buf);
 "#;
         let sites = parse_source_string(code, "test.rs", &[gpu_resource()]);
-        let deallocs: Vec<_> = sites.iter().filter(|s| s.kind == SiteKind::Deallocation).collect();
+        let deallocs: Vec<_> = sites
+            .iter()
+            .filter(|s| s.kind == SiteKind::Deallocation)
+            .collect();
         assert_eq!(deallocs.len(), 2, "Should detect both deallocation sites");
     }
 

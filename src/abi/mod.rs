@@ -64,10 +64,11 @@ impl fmt::Display for AffineResource {
 }
 
 /// WASM compilation target triple.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum WasmTarget {
     /// Standard WASM target without WASI — runs in browser or embedded runtimes.
     #[serde(rename = "wasm32-unknown-unknown")]
+    #[default]
     Wasm32Unknown,
     /// WASI-enabled target — can access filesystem, environment, etc.
     #[serde(rename = "wasm32-wasi")]
@@ -83,15 +84,9 @@ impl fmt::Display for WasmTarget {
     }
 }
 
-impl Default for WasmTarget {
-    fn default() -> Self {
-        WasmTarget::Wasm32Unknown
-    }
-}
-
 /// Configuration for the WASM compilation output — target triple, optimisation toggle,
 /// and optional binary size limit to enforce deployment constraints.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct WasmConfig {
     /// The WASM target triple to compile for.
     #[serde(default)]
@@ -102,16 +97,6 @@ pub struct WasmConfig {
     /// Maximum allowed WASM binary size in kilobytes. None means no limit.
     #[serde(rename = "size-limit-kb", default)]
     pub size_limit_kb: Option<u64>,
-}
-
-impl Default for WasmConfig {
-    fn default() -> Self {
-        Self {
-            target: WasmTarget::default(),
-            optimize: false,
-            size_limit_kb: None,
-        }
-    }
 }
 
 /// Categories of affine/linear type violations that the analyser can detect.
@@ -273,7 +258,10 @@ mod tests {
 
     #[test]
     fn test_wasm_target_display() {
-        assert_eq!(WasmTarget::Wasm32Unknown.to_string(), "wasm32-unknown-unknown");
+        assert_eq!(
+            WasmTarget::Wasm32Unknown.to_string(),
+            "wasm32-unknown-unknown"
+        );
         assert_eq!(WasmTarget::Wasm32Wasi.to_string(), "wasm32-wasi");
     }
 

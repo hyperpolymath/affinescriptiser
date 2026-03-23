@@ -1,4 +1,11 @@
 #![forbid(unsafe_code)]
+#![allow(
+    dead_code,
+    clippy::too_many_arguments,
+    clippy::manual_strip,
+    clippy::if_same_then_else,
+    clippy::vec_init_then_push
+)]
 // SPDX-License-Identifier: PMPL-1.0-or-later
 // Copyright (c) 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 //
@@ -10,7 +17,7 @@ pub mod abi;
 pub mod codegen;
 pub mod manifest;
 
-pub use manifest::{load_manifest, validate, Manifest};
+pub use manifest::{Manifest, load_manifest, validate};
 
 /// Run the full affinescriptiser pipeline: load manifest, validate, and generate all artefacts.
 /// This is the primary entry point for library consumers.
