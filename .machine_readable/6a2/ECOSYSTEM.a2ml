@@ -1,48 +1,20 @@
-;; SPDX-License-Identifier: PMPL-1.0-or-later
-;; Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
-;; ECOSYSTEM.a2ml — Ecosystem position for affinescriptiser
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+#
+# ECOSYSTEM.a2ml — Affinescriptiser ecosystem position
+[metadata]
+version = "0.1.0"
+last-updated = "2026-04-11"
 
-(ecosystem
-  (version "0.1.0")
-  (name "affinescriptiser")
-  (type "tool")
-  (purpose "Wrap existing Rust/C/Zig code in affine + dependent types, compile to WASM via AffineScript")
+[project]
+name = "Affinescriptiser"
+purpose = "Wrap existing Rust/C/Zig code in affine + dependent types, compile to WASM via AffineScript"
+role = "tool"
 
-  (position-in-ecosystem
-    (family "-iser acceleration frameworks")
-    (meta-framework "iseriser")
-    (relationship "sibling")
-    (niche "Resource safety and WASM compilation — the only -iser that targets WebAssembly as primary output")
-    (top-3 ("typedqliser" "chapeliser" "verisimiser")))
+[position-in-ecosystem]
+category = ""
 
-  (related-projects
-    (project "affinescript"
-      (relationship "target-language")
-      (description "The AffineScript language itself — affine types + dependent types + algebraic effects, compiling to WASM")
-      (repo "https://github.com/hyperpolymath/affinescript")
-      (how-used "affinescriptiser generates AffineScript source code as an intermediate representation before WASM compilation"))
-    (project "iseriser"
-      (relationship "meta-framework")
-      (description "Generates new -iser project scaffolding")
-      (repo "https://github.com/hyperpolymath/iseriser"))
-    (project "typedqliser"
-      (relationship "sibling-priority-1")
-      (description "Formal type safety for any query language"))
-    (project "chapeliser"
-      (relationship "sibling-priority-2")
-      (description "Chapel distributed computing acceleration"))
-    (project "verisimiser"
-      (relationship "sibling-priority-3")
-      (description "VeriSimDB octad database augmentation"))
-    (project "proven"
-      (relationship "dependency")
-      (description "Shared Idris2 verified library — affinescriptiser uses proven's core proofs for resource linearity"))
-    (project "typell"
-      (relationship "dependency")
-      (description "Type theory engine — provides the type-level reasoning used in affine/dependent type generation"))
-    (project "boj-server"
-      (relationship "future-integration")
-      (description "BoJ MCP server — affinescriptiser will be available as a BoJ cartridge for on-demand wrapping"))
-    (project "panll"
-      (relationship "future-integration")
-      (description "Panel layout framework — affinescriptiser panel for resource ownership visualisation"))))
+[related-projects]
+projects = [
+  # No related projects recorded
+]
