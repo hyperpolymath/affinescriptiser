@@ -2,6 +2,8 @@
 # affinescriptiser — affine + dependent type wrappers targeting WASM via AffineScript
 
 # Default: build and test
+import? "contractile.just"
+
 default: build test
 
 # Build release binary
