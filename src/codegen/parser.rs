@@ -71,7 +71,7 @@ pub fn parse_sources(manifest: &Manifest) -> Vec<ResourceSite> {
             let trimmed = line.trim();
 
             // Skip comments (basic heuristic per language).
-            if is_comment(trimmed, lang.unwrap()) {
+            if is_comment(trimmed, lang.expect("TODO: handle error")) {
                 continue;
             }
 
