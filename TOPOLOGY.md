@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: PMPL-1.0-or-later -->
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 <!-- Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) -->
 # TOPOLOGY.md — Affinescriptiser Repository Map
 
@@ -13,7 +13,7 @@
 | `CONTRIBUTING.adoc` | Contribution guide |
 | `SECURITY.md` | Security policy |
 | `CHANGELOG.md` | Release history |
-| `LICENSE` | PMPL-1.0-or-later full text |
+| `LICENSE` | MPL-2.0 full text |
 | `Cargo.toml` | Rust crate manifest (clap, serde, toml, handlebars) |
 | `Justfile` | Task runner (build, test, lint, fmt, quality, assail) |
 | `Containerfile` | OCI container build (Chainguard base) |
