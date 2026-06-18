@@ -69,7 +69,7 @@
 
 | File | Purpose |
 |------|---------|
-| `examples/SafeDOMExample.res` | ReScript example: SafeDOM mounting with proven selector/HTML validation |
+| `examples/SafeDOMExample.affine` | AffineScript example: SafeDOM mounting with proven selector/HTML validation |
 | `examples/web-project-deno.json` | Deno project configuration for web example |
 
 ## `tests/` — Test Suite
