@@ -16,6 +16,7 @@ module Affinescriptiser.ABI.Types
 import Data.Bits
 import Data.So
 import Data.Vect
+import Decidable.Equality
 
 %default total
 
@@ -30,12 +31,10 @@ data Platform = Linux | Windows | MacOS | BSD | WASM
 
 ||| Compile-time platform detection
 ||| Affinescriptiser primarily targets WASM, but supports native for testing
+||| Affinescriptiser primarily targets WASM, so the default platform is WASM.
 public export
 thisPlatform : Platform
-thisPlatform =
-  %runElab do
-    -- Platform detection logic — default WASM for affinescriptiser
-    pure WASM
+thisPlatform = WASM
 
 --------------------------------------------------------------------------------
 -- Resource Kinds
@@ -92,6 +91,14 @@ data Linearity : Type where
   Affine : Linearity
   ||| May be used any number of times (no tracking, opt-out)
   Unrestricted : Linearity
+
+||| Linearity equality (used by the compile-time verification helpers).
+public export
+Eq Linearity where
+  Linear       == Linear       = True
+  Affine       == Affine       = True
+  Unrestricted == Unrestricted = True
+  _            == _            = False
 
 ||| Proof that Affine is weaker than Linear
 ||| Linear implies Affine — anything that satisfies linear constraints
@@ -202,7 +209,55 @@ DecEq Result where
   decEq NullPointer NullPointer = Yes Refl
   decEq AffineViolation AffineViolation = Yes Refl
   decEq ResourceLeak ResourceLeak = Yes Refl
-  decEq _ _ = No absurd
+
+  decEq Ok Error = No (\case Refl impossible)
+  decEq Ok InvalidParam = No (\case Refl impossible)
+  decEq Ok OutOfMemory = No (\case Refl impossible)
+  decEq Ok NullPointer = No (\case Refl impossible)
+  decEq Ok AffineViolation = No (\case Refl impossible)
+  decEq Ok ResourceLeak = No (\case Refl impossible)
+
+  decEq Error Ok = No (\case Refl impossible)
+  decEq Error InvalidParam = No (\case Refl impossible)
+  decEq Error OutOfMemory = No (\case Refl impossible)
+  decEq Error NullPointer = No (\case Refl impossible)
+  decEq Error AffineViolation = No (\case Refl impossible)
+  decEq Error ResourceLeak = No (\case Refl impossible)
+
+  decEq InvalidParam Ok = No (\case Refl impossible)
+  decEq InvalidParam Error = No (\case Refl impossible)
+  decEq InvalidParam OutOfMemory = No (\case Refl impossible)
+  decEq InvalidParam NullPointer = No (\case Refl impossible)
+  decEq InvalidParam AffineViolation = No (\case Refl impossible)
+  decEq InvalidParam ResourceLeak = No (\case Refl impossible)
+
+  decEq OutOfMemory Ok = No (\case Refl impossible)
+  decEq OutOfMemory Error = No (\case Refl impossible)
+  decEq OutOfMemory InvalidParam = No (\case Refl impossible)
+  decEq OutOfMemory NullPointer = No (\case Refl impossible)
+  decEq OutOfMemory AffineViolation = No (\case Refl impossible)
+  decEq OutOfMemory ResourceLeak = No (\case Refl impossible)
+
+  decEq NullPointer Ok = No (\case Refl impossible)
+  decEq NullPointer Error = No (\case Refl impossible)
+  decEq NullPointer InvalidParam = No (\case Refl impossible)
+  decEq NullPointer OutOfMemory = No (\case Refl impossible)
+  decEq NullPointer AffineViolation = No (\case Refl impossible)
+  decEq NullPointer ResourceLeak = No (\case Refl impossible)
+
+  decEq AffineViolation Ok = No (\case Refl impossible)
+  decEq AffineViolation Error = No (\case Refl impossible)
+  decEq AffineViolation InvalidParam = No (\case Refl impossible)
+  decEq AffineViolation OutOfMemory = No (\case Refl impossible)
+  decEq AffineViolation NullPointer = No (\case Refl impossible)
+  decEq AffineViolation ResourceLeak = No (\case Refl impossible)
+
+  decEq ResourceLeak Ok = No (\case Refl impossible)
+  decEq ResourceLeak Error = No (\case Refl impossible)
+  decEq ResourceLeak InvalidParam = No (\case Refl impossible)
+  decEq ResourceLeak OutOfMemory = No (\case Refl impossible)
+  decEq ResourceLeak NullPointer = No (\case Refl impossible)
+  decEq ResourceLeak AffineViolation = No (\case Refl impossible)
 
 --------------------------------------------------------------------------------
 -- Tracked Resource Handle
@@ -227,8 +282,10 @@ trackedPtr (MkTracked ptr _ _) = ptr
 ||| Safely create a tracked resource from a raw pointer
 public export
 trackResource : (ptr : Bits64) -> (kind : ResourceKind) -> Maybe (TrackedResource kind (defaultLinearity kind) Owned)
-trackResource 0 _    = Nothing
-trackResource ptr kind = Just (MkTracked ptr kind (defaultLinearity kind))
+trackResource ptr kind =
+  case choose (ptr /= 0) of
+    Left ok => Just (MkTracked ptr kind (defaultLinearity kind) {nonNull = ok})
+    Right _ => Nothing
 
 --------------------------------------------------------------------------------
 -- Opaque Handles (for FFI bridge)
@@ -243,8 +300,10 @@ data Handle : Type where
 ||| Safely create a handle from a pointer value
 public export
 createHandle : Bits64 -> Maybe Handle
-createHandle 0 = Nothing
-createHandle ptr = Just (MkHandle ptr)
+createHandle ptr =
+  case choose (ptr /= 0) of
+    Left ok => Just (MkHandle ptr {nonNull = ok})
+    Right _ => Nothing
 
 ||| Extract pointer value from handle
 public export
@@ -276,10 +335,18 @@ ptrSize : Platform -> Nat
 ptrSize WASM = 32
 ptrSize _    = 64
 
-||| Pointer type for platform
+||| Pointer type for platform. WASM uses 32-bit addresses (`Bits32`); native
+||| platforms use 64-bit (`Bits64`). The target-element type parameter is
+||| phantom: C pointers are machine words regardless of pointee. (There is no
+||| `Bits : Nat -> Type` family in Data.Bits, so we map to the concrete
+||| primitive integer types directly.)
 public export
 CPtr : Platform -> Type -> Type
-CPtr p _ = Bits (ptrSize p)
+CPtr WASM    _ = Bits32
+CPtr Linux   _ = Bits64
+CPtr Windows _ = Bits64
+CPtr MacOS   _ = Bits64
+CPtr BSD     _ = Bits64
 
 --------------------------------------------------------------------------------
 -- Memory Layout Proofs
@@ -295,21 +362,20 @@ public export
 data HasAlignment : Type -> Nat -> Type where
   AlignProof : {0 t : Type} -> {n : Nat} -> HasAlignment t n
 
-||| Size of C types (platform-specific)
+||| Size of C types (platform-specific). `CInt`/`CSize` reduce to the concrete
+||| `Bits32`/`Bits64` primitives, so they are handled by those clauses; one
+||| cannot pattern-match on a reducible type-level function application.
 public export
 cSizeOf : (p : Platform) -> (t : Type) -> Nat
-cSizeOf p (CInt _)  = 4
-cSizeOf p (CSize _) = if ptrSize p == 64 then 8 else 4
 cSizeOf p Bits32    = 4
 cSizeOf p Bits64    = 8
 cSizeOf p Double    = 8
 cSizeOf p _         = ptrSize p `div` 8
 
-||| Alignment of C types (platform-specific)
+||| Alignment of C types (platform-specific). See `cSizeOf` for the
+||| `CInt`/`CSize` reduction note.
 public export
 cAlignOf : (p : Platform) -> (t : Type) -> Nat
-cAlignOf p (CInt _)  = 4
-cAlignOf p (CSize _) = if ptrSize p == 64 then 8 else 4
 cAlignOf p Bits32    = 4
 cAlignOf p Bits64    = 8
 cAlignOf p Double    = 8
@@ -319,11 +385,17 @@ cAlignOf p _         = ptrSize p `div` 8
 -- WASM-Specific Proofs
 --------------------------------------------------------------------------------
 
-||| Proof that a WASM linear memory offset is within bounds
-||| WASM linear memory uses 32-bit addresses (max 4GiB)
+||| Proof that a WASM linear memory offset is within bounds.
+||| WASM linear memory uses 32-bit addresses (max 4GiB).
+|||
+||| The bound is compared at `Integer` (via `natToInteger`) rather than `Nat`:
+||| the WASM 4GiB limit (4294967296) is far too large to normalise as a unary
+||| `Nat` at type-checking time, so we keep the literal a machine integer and
+||| use primitive `Integer` comparison. The proposition is exactly
+||| `offset + size <= 4294967296`.
 public export
 data WASMOffsetValid : Nat -> Nat -> Type where
-  OffsetOk : (offset : Nat) -> (size : Nat) -> {auto 0 inBounds : So (offset + size <= 4294967296)} -> WASMOffsetValid offset size
+  OffsetOk : (offset : Nat) -> (size : Nat) -> {auto 0 inBounds : So (natToInteger (offset + size) <= 4294967296)} -> WASMOffsetValid offset size
 
 ||| Proof that a tracked resource's pointer fits in WASM address space
 public export
