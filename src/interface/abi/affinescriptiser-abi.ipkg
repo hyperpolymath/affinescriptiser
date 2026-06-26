@@ -1,0 +1,9 @@
+-- SPDX-License-Identifier: MPL-2.0
+package affinescriptiser-abi
+
+sourcedir = "."
+
+modules = Affinescriptiser.ABI.Types
+        , Affinescriptiser.ABI.Layout
+        , Affinescriptiser.ABI.Foreign
+        , Affinescriptiser.ABI.Proofs
