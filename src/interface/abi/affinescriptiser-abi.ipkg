@@ -7,3 +7,4 @@ modules = Affinescriptiser.ABI.Types
         , Affinescriptiser.ABI.Layout
         , Affinescriptiser.ABI.Foreign
         , Affinescriptiser.ABI.Proofs
+        , Affinescriptiser.ABI.Semantics
