@@ -70,7 +70,8 @@ fn generate_build_config(config: &WasmConfig, module_name: &str) -> String {
             writeln!(out, "no-wasi = true").expect("TODO: handle error");
         }
         WasmTarget::Wasm32Wasi => {
-            writeln!(out, "# WASI-enabled WASM (filesystem, env access)").expect("TODO: handle error");
+            writeln!(out, "# WASI-enabled WASM (filesystem, env access)")
+                .expect("TODO: handle error");
             writeln!(out, "wasi = true").expect("TODO: handle error");
         }
     }

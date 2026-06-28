@@ -119,7 +119,8 @@ fn generate_resource_wrapper(out: &mut String, resource: &AffineResource) {
         marker = affinity_marker
     )
     .expect("TODO: handle error");
-    writeln!(out, "    let raw = @ffi::{}(params);", resource.allocator).expect("TODO: handle error");
+    writeln!(out, "    let raw = @ffi::{}(params);", resource.allocator)
+        .expect("TODO: handle error");
     writeln!(out, "    {}<{}>::wrap(raw)", type_name, affinity_marker).expect("TODO: handle error");
     writeln!(out, "  }}").expect("TODO: handle error");
     writeln!(out).expect("TODO: handle error");
@@ -163,7 +164,8 @@ fn generate_resource_wrapper(out: &mut String, resource: &AffineResource) {
             type_name
         )
         .expect("TODO: handle error");
-        writeln!(out, "  impl MustConsume for {}<Linear> {{}}", type_name).expect("TODO: handle error");
+        writeln!(out, "  impl MustConsume for {}<Linear> {{}}", type_name)
+            .expect("TODO: handle error");
     }
 }
 
