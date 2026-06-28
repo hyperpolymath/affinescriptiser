@@ -10,3 +10,4 @@ modules = Affinescriptiser.ABI.Types
         , Affinescriptiser.ABI.Semantics
         , Affinescriptiser.ABI.Invariants
         , Affinescriptiser.ABI.FfiSeam
+        , Affinescriptiser.ABI.Capstone
