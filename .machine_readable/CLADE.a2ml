@@ -3,11 +3,11 @@
 # See: https://github.com/hyperpolymath/gv-clade-index
 
 [identity]
-uuid = "a5ea1382-a34c-5334-8a46-a2ebe904c810"
+uuid = "70dbbf5c-f2fe-5022-a223-e7f3f2a0a482"
 primary-forge = "github"
 primary-owner = "hyperpolymath"
-canonical-name = "rsr-template-repo"
-prefixed-name = "rm-rsr-template-repo"
+canonical-name = "affinescriptiser"
+prefixed-name = "rm-affinescriptiser"
 
 [clade]
 primary = "rm"
@@ -16,9 +16,9 @@ assigned = "2026-03-16"
 rationale = ""
 
 [forges]
-github = "hyperpolymath/rsr-template-repo"
-gitlab = "hyperpolymath/rsr-template-repo"
-bitbucket = "hyperpolymath/rsr-template-repo"
+github = "hyperpolymath/affinescriptiser"
+gitlab = "hyperpolymath/affinescriptiser"
+bitbucket = "hyperpolymath/affinescriptiser"
 
 [lineage]
 type = "standalone"
