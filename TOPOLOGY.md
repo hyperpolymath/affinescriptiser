@@ -18,7 +18,7 @@
 | `Justfile` | Task runner (build, test, lint, fmt, quality, assail) |
 | `Containerfile` | OCI container build (Chainguard base) |
 | `contractile.just` | Contractile enforcement recipes |
-| `flake.nix` | Nix flake for reproducible builds |
+| `flake.guix` | Guix flake for reproducible builds |
 | `guix.scm` | Guix package definition |
 | `.editorconfig` | Editor formatting rules |
 | `.envrc` | direnv environment |
