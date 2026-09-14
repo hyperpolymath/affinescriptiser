@@ -156,13 +156,13 @@ All machine-readable metadata lives here (never in root).
 [width="100%",cols="40%,60%",options="header",]
 |===
 |Path |Purpose
-|`+.machine_readable/6a2/STATE.a2ml+` |Project state: scaffold phase, 5%
+|`+.machine_readable/descriptiles/STATE.a2ml+` |Project state: scaffold phase, 5%
 complete
 
-|`+.machine_readable/6a2/META.a2ml+` |Architecture decisions:
+|`+.machine_readable/descriptiles/META.a2ml+` |Architecture decisions:
 iser-pattern, ABI-FFI standard, RSR template
 
-|`+.machine_readable/6a2/ECOSYSTEM.a2ml+` |Ecosystem position: -iser
+|`+.machine_readable/descriptiles/ECOSYSTEM.a2ml+` |Ecosystem position: -iser
 family, siblings (typedqliser, chapeliser, verisimiser)
 
 |`+.machine_readable/CLADE.a2ml+` |Clade taxonomy classification
