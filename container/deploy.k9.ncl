@@ -9,7 +9,7 @@ K9!
 # It requires explicit authorisation via the Leash system.
 #
 # Usage:
-#   nickel typecheck container/deploy.k9.ncl
+#   nickel typecheck <(tail -n +2 container/deploy.k9.ncl)
 #   k9-svc validate container/deploy.k9.ncl
 #   k9-svc deploy container/deploy.k9.ncl --env production
 
