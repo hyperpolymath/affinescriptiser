@@ -1,3 +1,4 @@
+K9!
 # SPDX-License-Identifier: MPL-2.0
 # deploy.k9.ncl — {{PROJECT_NAME}} deployment component (Hunt level)
 #
@@ -8,7 +9,7 @@
 # It requires explicit authorisation via the Leash system.
 #
 # Usage:
-#   nickel typecheck container/deploy.k9.ncl
+#   nickel typecheck <(tail -n +2 container/deploy.k9.ncl)
 #   k9-svc validate container/deploy.k9.ncl
 #   k9-svc deploy container/deploy.k9.ncl --env production
 
@@ -143,7 +144,12 @@ echo "K9: Rollback complete."
 
 # Export the component
 {
-  pedigree = component_pedigree,
+  pedigree = component_pedigree & {
+    name = "{{SERVICE_NAME}}-deploy",
+    version = "{{VERSION}}",
+    leash = 'Hunt,
+    signature = "PLACEHOLDER-SIGNATURE-REQUIRED-FOR-HUNT",
+  },
   deployment = deployment,
   scripts = scripts,
 
